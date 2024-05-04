@@ -8,14 +8,29 @@ import (
 )
 
 func main() {
-	path := "sample-data/ECG01.mwf"
+	var path string
+	/*
+	if len(os.Args) < 1 {
+		path = "sample-data/ECG01.mwf"
+	} else {
+		path = os.Args[0]
+	}
+	*/
+	path = "sample-data/ECG01.mwf"
+	
 	bytes, err := os.ReadFile(path)
 
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	mfer := parseMfer(bytes)
+	mfer, err := parseMfer(bytes)
+	if (err != nil) {
+		log.Fatal(err)
+		m, _ := json.MarshalIndent(mfer, "", "    ")
+		fmt.Println(string(m))
+		return 
+	}
 	m, _ := json.MarshalIndent(mfer, "", "    ")
 	fmt.Println(string(m))
 }

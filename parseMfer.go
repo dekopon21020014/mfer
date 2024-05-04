@@ -3,10 +3,11 @@ package main
 import (
 	"encoding/binary"
 	"fmt"
+	"errors"
 	// "encoding/json"
 )
 
-func parseMfer(bytes []byte) Mfer {
+func parseMfer(bytes []byte) (Mfer, error) {
 	var (
 		mfer    Mfer
 		length  byte
@@ -18,26 +19,38 @@ func parseMfer(bytes []byte) Mfer {
 		i++
 		length = bytes[i]
 		i++
-		fmt.Printf("tagCode = %02x, length = %02x(%d), i = %d\n", tagCode, length, length, i)
+		// fmt.Printf("tagCode = %02x, length = %02x(%d), i = %d\n", tagCode, length, length, i)
 
 		switch tagCode { /* tag名を出力する */
 		// for Mfer.Sampling
 		case INTERVAL: /* サンプリング間隔とか */
 			mfer.Sampling.Interval.UnitCode = bytes[i]
 			mfer.Sampling.Interval.Exponent = int8(bytes[i+1])
-			mfer.Sampling.Interval.Mantissa = Binary2Uint32(mfer.Control.ByteOrder, bytes[i+2:i+int(length)]...)
+			mantissa, err := Binary2Uint32(mfer.Control.ByteOrder, bytes[i+2:i+int(length)]...)
+			if err != nil {
+				return mfer, err
+			}
+			mfer.Sampling.Interval.Mantissa = mantissa
 
 		case SENSITIVITY: /* サンプリング解像度 */
 			// 得られるのはコードだから文字列に変換したいなら別途処理が必要
 			mfer.Sampling.Sensitivity.UnitCode = bytes[i]
 			mfer.Sampling.Sensitivity.Exponent = int8(bytes[i+1])
-			mfer.Sampling.Sensitivity.Mantissa = Binary2Uint32(mfer.Control.ByteOrder, bytes[i+2:i+int(length)]...)
+			mantissa, err := Binary2Uint32(mfer.Control.ByteOrder, bytes[i+2:i+int(length)]...)
+			if err != nil {
+				return mfer, err
+			}
+			mfer.Sampling.Sensitivity.Mantissa = mantissa
 
 		case DATA_TYPE:
 			mfer.Sampling.DataTypeCode = bytes[i]
 
 		case OFFSET:
-			mfer.Sampling.Offset = Binary2Uint64(mfer.Control.ByteOrder, bytes[i:i+int(length)]...)
+			offset, err := Binary2Uint64(mfer.Control.ByteOrder, bytes[i:i+int(length)]...)
+			if err != nil {
+				return mfer, err
+			}
+			mfer.Sampling.Offset = offset
 
 		case NULL:
 			mfer.Sampling.Null = 0
@@ -45,24 +58,43 @@ func parseMfer(bytes []byte) Mfer {
 		// for Mfer.Frame
 		case BLOCK: /* ブロック長 1ブロックが何データから成るか */
 			binaryBlockLength := bytes[i : i+int(length)]
-			mfer.Frame.BlockLength = Binary2Uint32(mfer.Control.ByteOrder, binaryBlockLength...)
+			blockLength, err := Binary2Uint32(mfer.Control.ByteOrder, binaryBlockLength...)
+			if err != nil {
+				return mfer, err
+			}
+			mfer.Frame.BlockLength = blockLength
 
 		case CHANNEL: /* チャンネル数 */
 			binaryNumChannel := bytes[i : i+int(length)]
-			mfer.Frame.NumChannel = Binary2Uint32(mfer.Control.ByteOrder, binaryNumChannel...)
+			num, err := Binary2Uint32(mfer.Control.ByteOrder, binaryNumChannel...)
+			if err != nil {
+				return mfer, err
+			}
+			mfer.Frame.NumChannel = num
+			fmt.Printf("  chan = %d\n", mfer.Frame.NumChannel)
 
 		case SEQUENCE: /* シーケンス数 */
 			binaryNumSequence := bytes[i : i+int(length)]
-			mfer.Frame.NumSequence = Binary2Uint32(mfer.Control.ByteOrder, binaryNumSequence...)
+			num, err := Binary2Uint32(mfer.Control.ByteOrder, binaryNumSequence...)
+			if err != nil {
+				return mfer, err
+			}
+			mfer.Frame.NumSequence = num
 
 		case F_POINTER:
 			/* do somthing */
 
 		// for Mfer.WaveFrom
 		case WAVE_FORM_TYPE:
-			mfer.WaveForm.Code = Binary2Uint16(mfer.Control.ByteOrder, bytes[i:i+int(length)]...)
+			code, err := Binary2Uint16(mfer.Control.ByteOrder, bytes[i:i+int(length)]...)
+			if err != nil {
+				return mfer, err
+			}
+			mfer.WaveForm.Code = code
+			// mfer.WaveForm.Code, err = Binary2Uint16(mfer.Control.ByteOrder, bytes[i:i+int(length)]...)
 
 		case CHANNEL_ATTRIBUTE:
+			fmt.Printf("  chan = %d\n", len(mfer.Frame.Channels))
 			length = bytes[i] // チャンネル属性のタグコードは2バイト
 			i++
 			channnel := Channel{
@@ -90,10 +122,13 @@ func parseMfer(bytes []byte) Mfer {
 			mfer.WaveForm.IpdCode = bytes[i]
 
 		case DATA: /* 波形データ部 */
-			// tagやデータ長は無条件でビッグエンディアん
-			// dataLength := Binary2Uint32(0, bytes[i : i+4]...)
-			i = i + 4
+			// tagやデータ長は無条件でビッグエンディアン
+		    // dataLength := Binary2Uint32(0, bytes[i : i+4]...)
+			dataLength := binary.BigEndian.Uint32(bytes[i : i+4])			
 			// mfer.WaveForm.Data = bytes[i : i + int(dataLength)] // この行は必要だけど見にくく成るのでコメントアウトしておく
+			i += 4
+			i += int(dataLength)
+			continue
 
 		// for Mfer.Control
 		case BYTE_ORDER:
@@ -152,8 +187,17 @@ func parseMfer(bytes []byte) Mfer {
 
 		case P_AGE:
 			mfer.Helper.Patient.Age = bytes[i]
-			mfer.Helper.Patient.AgeInDays = Binary2Uint32(mfer.Control.ByteOrder, bytes[i+1 : i+3]...)
-			mfer.Helper.Patient.BirthYear = Binary2Uint32(mfer.Control.ByteOrder, bytes[i+3 : i+5]...)
+			ageInDays, err := Binary2Uint32(mfer.Control.ByteOrder, bytes[i+1 : i+3]...)
+			if err != nil {
+				return mfer, err
+			}
+			mfer.Helper.Patient.AgeInDays = ageInDays
+
+			birthYear, err := Binary2Uint32(mfer.Control.ByteOrder, bytes[i+3 : i+5]...)
+			if err != nil {
+				return mfer, err
+			}
+			mfer.Helper.Patient.BirthYear = birthYear
 			mfer.Helper.Patient.BirthMonth = bytes[i+5]
 			mfer.Helper.Patient.BirthDay = bytes[i+6]
 
@@ -165,58 +209,70 @@ func parseMfer(bytes []byte) Mfer {
 
 		case MESSAGE:
 		case UID:
-
 		case MAP:
 		case END:
 			fmt.Printf("END\n")
 			break
 		}
-		
+
 		i += int(length)
 	}
-	return mfer
+	return mfer, nil
 }
 
-func Binary2Uint16(byteOrder byte, bytes ...byte) uint16 {
-	// fmt.Printf("wave code = %d\n", bytes)
+func Binary2Uint16(byteOrder byte, bytes ...byte) (uint16, error) {
+	if len(bytes) > 2 {
+		return 0,  errors.New("len(bytes) must be less than 2")
+	}
 	b := make([]byte, len(bytes))
 	copy(b, bytes)
 	padding := make([]byte, 2-len(b))
 	if byteOrder == 0 { // big endian
 		b = append(padding, b...)
-		return binary.BigEndian.Uint16(b)
+		return binary.BigEndian.Uint16(b), nil
 	} else if byteOrder == 1 { // little endian
 		b = append(b, padding...)
-		return binary.LittleEndian.Uint16(b)
+		return binary.LittleEndian.Uint16(b), nil
+	} else {
+		return 0, errors.New("undefined byte order or something went wrong")
 	}
-	return 111
 }
 
 // 4byte以内の文字列をuint32に変換する
-func Binary2Uint32(byteOrder byte, bytes ...byte) uint32 {
+func Binary2Uint32(byteOrder byte, bytes ...byte) (uint32, error) {
+	if len(bytes) > 4 {
+		return 0,  errors.New("len(bytes) must be less than 4")
+	}
+
 	b := make([]byte, len(bytes))
 	copy(b, bytes)
 	padding := make([]byte, 4-len(b))
 	if byteOrder == 0 { // big endian
 		b = append(padding, b...)
-		return binary.BigEndian.Uint32(b)
+		return binary.BigEndian.Uint32(b), nil
 	} else if byteOrder == 1 { // little endian
 		b = append(b, padding...)
-		return binary.LittleEndian.Uint32(b)
+		return binary.LittleEndian.Uint32(b), nil
+	} else {
+		return 0, errors.New("undefined byte order or something went wrong")
 	}
-	return 0
 }
 
-func Binary2Uint64(byteOrder byte, bytes ...byte) uint64 {
+func Binary2Uint64(byteOrder byte, bytes ...byte) (uint64, error) {
+	if len(bytes) > 8 {
+		return 0,  errors.New("len(bytes) must be less than 8")
+	}
+
 	b := make([]byte, len(bytes))
 	copy(b, bytes)
 	padding := make([]byte, 8-len(b))
 	if byteOrder == 0 { // big endian
 		b = append(padding, b...)
-		return binary.BigEndian.Uint64(b)
+		return binary.BigEndian.Uint64(b), nil
 	} else if byteOrder == 1 { // little endian
 		b = append(b, padding...)
-		return binary.LittleEndian.Uint64(b)
+		return binary.LittleEndian.Uint64(b), nil
+	} else {
+		return 0, errors.New("undefined byte order or something went wrong")
 	}
-	return 0
 }
