@@ -12,7 +12,7 @@ const (
 	BLOCK    = 0x04
 	CHANNEL  = 0x05
 	SEQUENCE = 0x06
-	POINTER  = 0x07
+	F_POINTER  = 0x07
 
 	// for Mfer.WaveForm
 	WAVE_FORM_TYPE    = 0x08
@@ -39,17 +39,17 @@ const (
 	CONDITION = 0x44
 	ERROR     = 0x43
 	GROUP     = 0x67
-	POINTER   = 0x45
+	R_POINTER   = 0x45
 	SIGNITURE = 0x46
-	
+
 	// for Mfer.Helper
-	P_NAME = 0x81
-	P_ID  = 0x82
-	P_AGE = 0x83
-	P_SEX = 0x83
-	TIME = 0x85
+	P_NAME  = 0x81
+	P_ID    = 0x82
+	P_AGE   = 0x83
+	P_SEX   = 0x84
+	TIME    = 0x85
 	MESSAGE = 0x86
-	UID = 0x87
-	MAP = 0x88
-	END = 0x80
+	UID     = 0x87
+	MAP     = 0x88
+	END     = 0x80
 )
