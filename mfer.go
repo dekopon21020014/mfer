@@ -46,12 +46,12 @@ type Channel struct {
 }
 
 type WaveForm struct {
-	Code        uint16 /* 0: unknown, 1: standard 12, ... , */
+	Code uint16 /* 0: unknown, 1: standard 12, ... , */
 	//Attribute   Attribute
 	Ldn         byte /* 波形コード，stringの波形情報も取得する必要あり */
 	Information string
 	Filter      string /* 広域，低域とか */
-	IpdCode     byte    /* 無条件間引きとか，線形補完とか stringの説明もある？ */
+	IpdCode     byte   /* 無条件間引きとか，線形補完とか stringの説明もある？ */
 	Data        []byte /* 波形データどうやって保存しようかな */
 }
 
@@ -60,24 +60,32 @@ type Attribute struct {
 }
 
 type Control struct {
-	ByteOrder   byte   /* 0: big endian, 1: little endian */
-	Version     int    /* 3byte必要 */
-	CharCode    string /* 文字コード, デフォルトはASCII */
-	Zero        int
-	Comment     string
-	MchineInfo  string
-	Compression int /* 圧縮コード データ長　圧縮データ の3つがある */
+	ByteOrder       byte   /* 0: big endian, 1: little endian */
+	Version         []byte /* 3byte必要 */
+	CharCode        string /* 文字コード, デフォルトはASCII */
+	Zero            int
+	Comment         string
+	MachineInfo     string
+	CompressionCode uint16 /* 圧縮コード データ長　圧縮データ の3つがある */
 }
 
 type Extensions struct {
-	Preamble         string
-	Event            int    /* イベントコード 開始時刻，　持続時間　イベント情報の4つがある */
-	Val              int    /* 値コード，時刻ポイント，値の3つがある */
+	Preamble string
+	Event    Event /* イベントコード 開始時刻，　持続時間　イベント情報の4つがある */
+
+	Value            int    /* 値コード，時刻ポイント，値の3つがある */
 	Condition        int    /* 記録条件，説明コード1, 説明コード２，開始ポイント，接続時間，説明内容 */
 	Error            int    /* *波形変換誤差 */
-	Set              int    /* グループ定義 */
+	Group            int    /* グループ定義 */
 	ReferencePointer string /* URLなどによって参照するらしい */
 	Signiture        int    /* 署名方法と署名データがある */
+}
+
+type Event struct {
+	Code     byte
+	Begin    uint32
+	Duration uint32
+	Info     string
 }
 
 type Helper struct {
@@ -91,14 +99,14 @@ type Helper struct {
 
 /* 患者情報 */
 type Patient struct {
-	Id         int
+	Id         string
 	Name       string
-	Age        int
-	AgeInDays  int
-	BirthYear  int
-	BirthMonth int
-	BirthDay   int
-	Sex        int
+	Age        byte
+	AgeInDays  uint32
+	BirthYear  uint32
+	BirthMonth byte
+	BirthDay   byte
+	Sex        byte
 }
 
 type Time struct {
