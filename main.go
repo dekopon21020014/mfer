@@ -9,14 +9,12 @@ import (
 
 func main() {
 	var path string
-	/*
-	if len(os.Args) < 1 {
+
+	if len(os.Args) < 2 { // コマンドライン引数なしならとりあえずECG01を対象にする(開発用)
 		path = "sample-data/ECG01.mwf"
 	} else {
-		path = os.Args[0]
+		path = os.Args[1]
 	}
-	*/
-	path = "sample-data/ECG01.mwf"
 	
 	bytes, err := os.ReadFile(path)
 
