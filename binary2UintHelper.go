@@ -7,7 +7,7 @@ import (
 
 func Binary2Uint16(byteOrder byte, bytes ...byte) (uint16, error) {
 	if len(bytes) > 2 {
-		return 0,  errors.New("len(bytes) must be less than 2")
+		return 0, errors.New("len(bytes) must be less than 2")
 	}
 	b := make([]byte, len(bytes))
 	copy(b, bytes)
@@ -26,7 +26,7 @@ func Binary2Uint16(byteOrder byte, bytes ...byte) (uint16, error) {
 // 4byte以内の文字列をuint32に変換する
 func Binary2Uint32(byteOrder byte, bytes ...byte) (uint32, error) {
 	if len(bytes) > 4 {
-		return 0,  errors.New("len(bytes) must be less than 4")
+		return 0, errors.New("len(bytes) must be less than 4")
 	}
 
 	b := make([]byte, len(bytes))
@@ -45,7 +45,7 @@ func Binary2Uint32(byteOrder byte, bytes ...byte) (uint32, error) {
 
 func Binary2Uint64(byteOrder byte, bytes ...byte) (uint64, error) {
 	if len(bytes) > 8 {
-		return 0,  errors.New("len(bytes) must be less than 8")
+		return 0, errors.New("len(bytes) must be less than 8")
 	}
 
 	b := make([]byte, len(bytes))

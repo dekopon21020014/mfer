@@ -9,10 +9,10 @@ const (
 	NULL        = 0x12
 
 	// for Mfer.Frame
-	BLOCK    = 0x04
-	CHANNEL  = 0x05
-	SEQUENCE = 0x06
-	F_POINTER  = 0x07
+	BLOCK     = 0x04
+	CHANNEL   = 0x05
+	SEQUENCE  = 0x06
+	F_POINTER = 0x07
 
 	// for Mfer.WaveForm
 	WAVE_FORM_TYPE    = 0x08
@@ -39,7 +39,7 @@ const (
 	CONDITION = 0x44
 	ERROR     = 0x43
 	GROUP     = 0x67
-	R_POINTER   = 0x45
+	R_POINTER = 0x45
 	SIGNITURE = 0x46
 
 	// for Mfer.Helper

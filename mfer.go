@@ -1,7 +1,7 @@
 package main
 
+// MFERの規約においてデフォルト値が定められているものについてはこの関数で定める
 func newMfer() Mfer {
-	//mfer :=
 	return Mfer{
 		Sampling: Sampling{
 			Interval: Interval{ // default: 1 * 10^{3} [Hz]
@@ -9,86 +9,22 @@ func newMfer() Mfer {
 				Exponent: 3,
 				Mantissa: 1,
 			},
-			/*
-			Sensitivity: Sensitivity{ // default: undefined
-				UnitCode: 0,
-				Exponent: 0,
-				Mantissa: 0,
-			},
-			*/
 			DataTypeCode: 0, // 16bit singed integer
 			Offset:       0, // default: 0
-			//Null:         0, 
 		},
 		Frame: Frame{
 			BlockLength: 1, 
 			NumChannel:  1,
-			//NumSequence: 0,
-			//Pointer:     0,
 			Channels:    make([]Channel, 0),
 		},
 		WaveForm: WaveForm{
-			// Code:        0,
 			Ldn:         0, // undefined
-			// Information: "",
-			// Filter:      "",
-			// IpdCode:     0,
-			// Data: null,
 		},
 		Control: Control{
 			ByteOrder: 0, // big endian
 			Version: []byte {0, 0, 0},
 			CharCode:        "ASCII",
-			// Zero:            0,
-			//Comment:         "",
-			//MachineInfo:     "NIHON KOHDEN^QP901D^00-80^0001",
-			//CompressionCode: 0,
 		},
-		Extensions: Extensions{
-			//Preamble: "MFR Standard 12 leads ECG       ",
-			/*
-			Event: Event{
-				Code:     0,
-				Begin:    0,
-				Duration: 0,
-				Info:     "",
-			},
-			Value:            0,
-			Condition:        0,
-			Error:            0,
-			Group:            0,
-			ReferencePointer: "",
-			Signiture:        0,
-			*/			
-		},
-		/*
-		Helper: Helper{
-			Patient: Patient{
-				Id:         "",
-				Name:       "",
-				Age:        0,
-				AgeInDays:  0,
-				BirthYear:  0,
-				BirthMonth: 0,
-				BirthDay:   0,
-				Sex:        0,
-			},
-			Time: Time{
-				Year:     0,
-				Month:    0,
-				Day:      0,
-				Hour:     0,
-				Minute:   0,
-				Second:   0,
-				MiliSec:  0,
-				MicroSec: 0,
-			},
-			Message: "",
-			UID:     0,
-			Map:     0,
-			End:     0,
-		},
-		*/
 	}
 }
 

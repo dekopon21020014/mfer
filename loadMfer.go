@@ -3,14 +3,20 @@ package main
 import (
 	"encoding/binary"
 	"fmt"
+	"os"
+	"log"
 )
 
-func parseMfer(bytes []byte) (Mfer, error) {
+func loadMfer(mfer Mfer, path string) (Mfer, error) {
 	var (
-		mfer    Mfer
 		length  byte
 		tagCode byte
 	)
+
+	bytes, err := os.ReadFile(path)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	for i := 0; i < len(bytes); {
 		tagCode = bytes[i]
@@ -121,8 +127,8 @@ func parseMfer(bytes []byte) (Mfer, error) {
 
 		case DATA: /* 波形データ部 */
 			// tagやデータ長は無条件でビッグエンディアン
-		    // dataLength := Binary2Uint32(0, bytes[i : i+4]...)
-			dataLength := binary.BigEndian.Uint32(bytes[i : i+4])			
+			// dataLength := Binary2Uint32(0, bytes[i : i+4]...)
+			dataLength := binary.BigEndian.Uint32(bytes[i : i+4])
 			// mfer.WaveForm.Data = bytes[i : i + int(dataLength)] // この行は必要だけど見にくく成るのでコメントアウトしておく
 			i += 4
 			i += int(dataLength)
@@ -185,13 +191,13 @@ func parseMfer(bytes []byte) (Mfer, error) {
 
 		case P_AGE:
 			mfer.Helper.Patient.Age = bytes[i]
-			ageInDays, err := Binary2Uint32(mfer.Control.ByteOrder, bytes[i+1 : i+3]...)
+			ageInDays, err := Binary2Uint32(mfer.Control.ByteOrder, bytes[i+1:i+3]...)
 			if err != nil {
 				return mfer, err
 			}
 			mfer.Helper.Patient.AgeInDays = ageInDays
 
-			birthYear, err := Binary2Uint32(mfer.Control.ByteOrder, bytes[i+3 : i+5]...)
+			birthYear, err := Binary2Uint32(mfer.Control.ByteOrder, bytes[i+3:i+5]...)
 			if err != nil {
 				return mfer, err
 			}
