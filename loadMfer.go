@@ -2,31 +2,55 @@ package main
 
 import (
 	"encoding/binary"
+	"golang.org/x/text/encoding/japanese"
+    "golang.org/x/text/transform"
 	"fmt"
 	"os"
+	"errors"
+	"io/ioutil"
 	"log"
+	b "bytes"
+	"unicode/utf8"
 )
 
 func loadMfer(mfer Mfer, path string) (Mfer, error) {
 	var (
-		length  byte
 		tagCode byte
+		length  uint32
 	)
 
 	bytes, err := os.ReadFile(path)
-	if err != nil {
-		log.Fatal(err)
+	if err != nil { /* cannnot open the file from path */
+		return mfer, err
 	}
 
 	for i := 0; i < len(bytes); {
 		tagCode = bytes[i]
 		i++
-		length = bytes[i]
-		i++
-		// fmt.Printf("tagCode = %02x, length = %02x(%d), i = %d\n", tagCode, length, length, i)
+		if tagCode == ZERO {
+			continue
+		} else if tagCode == END {
+			break
+		}
 
-		switch tagCode { /* tag名を出力する */
-		// for Mfer.Sampling
+		length = uint32(bytes[i])
+		i++
+		if length > 0x7f { /* MSBが1ならば */
+			numBytes := length - 0x80
+			if numBytes > 4 {
+				fmt.Printf("length = %d, numBytes = %d, bytes = %d\n", length, numBytes, bytes[i-1])
+				return mfer, errors.New("error nbytes")
+			}
+			length = binary.BigEndian.Uint32(append(make([]byte, 4-numBytes), bytes[i:i+int(numBytes)]...))
+			i += int(numBytes)
+		}
+
+		fmt.Printf("tagCode = %02x, length = %02x(%d), i = %d\n", tagCode, length, length, i)
+
+		switch tagCode {
+		/*
+		 * for Mfer.Sampling
+		 */
 		case INTERVAL: /* サンプリング間隔とか */
 			mfer.Sampling.Interval.UnitCode = bytes[i]
 			mfer.Sampling.Interval.Exponent = int8(bytes[i+1])
@@ -59,7 +83,9 @@ func loadMfer(mfer Mfer, path string) (Mfer, error) {
 		case NULL:
 			mfer.Sampling.Null = 0
 
-		// for Mfer.Frame
+		/*
+		 * for Mfer.Frame
+		 */
 		case BLOCK: /* ブロック長 1ブロックが何データから成るか */
 			binaryBlockLength := bytes[i : i+int(length)]
 			blockLength, err := Binary2Uint32(mfer.Control.ByteOrder, binaryBlockLength...)
@@ -75,7 +101,7 @@ func loadMfer(mfer Mfer, path string) (Mfer, error) {
 				return mfer, err
 			}
 			mfer.Frame.NumChannel = num
-			fmt.Printf("  chan = %d\n", mfer.Frame.NumChannel)
+			fmt.Printf("  num chan = %d\n", mfer.Frame.NumChannel)
 
 		case SEQUENCE: /* シーケンス数 */
 			binaryNumSequence := bytes[i : i+int(length)]
@@ -88,28 +114,45 @@ func loadMfer(mfer Mfer, path string) (Mfer, error) {
 		case F_POINTER:
 			/* do somthing */
 
-		// for Mfer.WaveFrom
+		/*
+		 * for Mfer.WaveFrom
+		 */
 		case WAVE_FORM_TYPE:
-			code, err := Binary2Uint16(mfer.Control.ByteOrder, bytes[i:i+int(length)]...)
+			// code, err := Binary2Uint16(mfer.Control.ByteOrder, bytes[i:i+int(length)]...)
+			code, err := Binary2Uint16(mfer.Control.ByteOrder, bytes[i:i+2]...)
 			if err != nil {
 				return mfer, err
 			}
 			mfer.WaveForm.Code = code
+			// description := string(bytes[i+2 : i+int(length)])
 			// mfer.WaveForm.Code, err = Binary2Uint16(mfer.Control.ByteOrder, bytes[i:i+int(length)]...)
 
 		case CHANNEL_ATTRIBUTE:
-			fmt.Printf("  chan = %d\n", len(mfer.Frame.Channels))
-			length = bytes[i] // チャンネル属性のタグコードは2バイト
+			channelNumber := int(bytes[i-1])
+			length = uint32(bytes[i])
 			i++
-			channnel := Channel{
-				Num:     len(mfer.Frame.Channels),
+			mfer.Frame.Channels[channelNumber] = Channel{
+				Num:     channelNumber,
 				TagCode: bytes[i],
 				Length:  bytes[i+1],
-				Data:    (bytes[i+2 : (i + 2 + int(bytes[i+1]))]),
+				Data:    (bytes[i+2 : ((i+2) + int(length))]),
 			}
-			mfer.Frame.Channels = append(mfer.Frame.Channels, channnel)
 
-		// for mfer.WaveForm
+			// channnelNumber := int(bytes[i-1])
+			// fmt.Printf("  chan = %d\n", channnelNumber/*len(mfer.Frame.Channels)*/)
+			// length = uint32(bytes[i]) // チャンネル属性のタグコードは2バイト
+			// i++
+			// channnel := Channel{
+			// 	Num:     channnelNumber/* len(mfer.Frame.Channels)*/,
+			// 	TagCode: bytes[i],
+			// 	Length:  bytes[i+1],
+			// 	Data:    (bytes[i+2 : (i + 2 + int(bytes[i+1]))]),
+			// }
+			// mfer.Frame.Channels = append(mfer.Frame.Channels, channnel)
+
+		/*
+		 * for mfer.WaveForm
+		 */
 		case LDN:
 			// 2byte 以上のこともある？
 			mfer.WaveForm.Ldn = bytes[i]
@@ -128,13 +171,16 @@ func loadMfer(mfer Mfer, path string) (Mfer, error) {
 		case DATA: /* 波形データ部 */
 			// tagやデータ長は無条件でビッグエンディアン
 			// dataLength := Binary2Uint32(0, bytes[i : i+4]...)
-			dataLength := binary.BigEndian.Uint32(bytes[i : i+4])
+			//dataLength := binary.BigEndian.Uint32(bytes[i : i+4])
 			// mfer.WaveForm.Data = bytes[i : i + int(dataLength)] // この行は必要だけど見にくく成るのでコメントアウトしておく
-			i += 4
-			i += int(dataLength)
-			continue
+			//i += 4
+			//i += int(dataLength)
 
-		// for Mfer.Control
+			//continue
+
+		/*
+		 * for Mfer.Control
+		 */
 		case BYTE_ORDER:
 			mfer.Control.ByteOrder = bytes[i]
 
@@ -142,7 +188,7 @@ func loadMfer(mfer Mfer, path string) (Mfer, error) {
 			// なんだこれ？
 			mfer.Control.Version = bytes[i : i+3]
 
-		case CHAR_CODE:
+		case CHAR_CODE:			
 			mfer.Control.CharCode = string(bytes[i : i+int(length)])
 
 		case ZERO:
@@ -156,35 +202,79 @@ func loadMfer(mfer Mfer, path string) (Mfer, error) {
 
 		case COMPRESSION:
 			fmt.Printf("COMPRESSTION\n")
-			// ここもいまいちよくわからない
-			i--
-			mfer.Control.CompressionCode = binary.BigEndian.Uint16(bytes[i : i+2])
-			// length = binary.BigEndian.Uint32(bytes[i+2 : i+6])
+			compressionCode, err := Binary2Uint16(0, bytes[i:i+2]...)
+			if err != nil {
+				return mfer, err
+			}
+			mfer.Control.CompressionCode = compressionCode
 
-		// for Mfer.Extensions
+			dataLength, err := Binary2Uint32(0, bytes[i+2:i+6]...)
+			if err != nil {
+				return mfer, err
+			}
+			fmt.Printf("code = %d, length = %d, dataLength = %d\n", compressionCode, length, dataLength)
+
+		/*
+		 * for Mfer.Extensions
+		 */
 		case PREAMBLE: /* プリアンブル */
 			mfer.Extensions.Preamble = string(bytes[i : i+int(length)])
 
 		case EVENT:
-			/* よくわかっていない */
-			i--
-			mfer.Extensions.Event.Code = bytes[i]
-			// ここはビッグエンディアンなのかリトルエンディアンなのか...
-			mfer.Extensions.Event.Begin = binary.BigEndian.Uint32(bytes[i+2 : i+6])
-			mfer.Extensions.Event.Duration = binary.BigEndian.Uint32(bytes[i+6 : i+10])
-			mfer.Extensions.Event.Info = string(bytes[i+10 : i+10+256])
+			eventCode, err := Binary2Uint16(mfer.Control.ByteOrder, bytes[i : i+2]...) //bytes[i : i+2]
+			if err != nil {
+				return mfer, err
+			}
+			mfer.Extensions.Event.Code = eventCode
+
+			begin, err  := Binary2Uint32(mfer.Control.ByteOrder, bytes[i+2 : i+6]...)
+			if err != nil {
+				return mfer, err
+			}
+			mfer.Extensions.Event.Begin = begin
+
+			duration, err := Binary2Uint32(mfer.Control.ByteOrder, bytes[i+6 : i+10]...)
+			if err != nil {
+				return mfer, err
+			}			
+			mfer.Extensions.Event.Duration = duration 
+			mfer.Extensions.Event.Info = string(bytes[i+10 : i+int(length)])
 
 		// この辺のフォーマットがよくわかっていない
 		case VALUE:
+			code, err := Binary2Uint16(mfer.Control.ByteOrder, bytes[i : i+2]...) //binary.BigEndian.Uint16(bytes[i : i+2])
+			if err != nil {
+				return mfer, err
+			}
+
+			time, err := Binary2Uint32(mfer.Control.ByteOrder, bytes[i+2 : i+6]...) // binary.BigEndian.Uint32(bytes[i+2 : i+6])
+			if err != nil {
+				return mfer, err
+			}
+
+			val := string(bytes[i+6 : i+int(length)])
+			fmt.Printf("Value\n  code = %d, time = %d, val = %s\n", code, time, val)
+
 		case CONDITION:
 		case ERROR:
 		case GROUP:
 		case R_POINTER:
 		case SIGNITURE:
 
-		// for Mfer.Helper
-		case P_NAME:
-			mfer.Helper.Patient.Name = string(bytes[i : i+int(length)])
+		/*
+		 * for Mfer.Helper
+		 */
+		case P_NAME: /* 患者の名前 */
+			if utf8.Valid(bytes[i : i+int(length)]) {
+				mfer.Helper.Patient.Name = string(bytes[i : i+int(length)])
+			} else {
+				reader := transform.NewReader(b.NewReader(bytes[i : i+int(length)]), japanese.ShiftJIS.NewDecoder())
+				utf8Bytes, err := ioutil.ReadAll(reader)
+				if err != nil {
+					log.Fatal(err)
+				}
+				mfer.Helper.Patient.Name = string(utf8Bytes)				
+			}
 
 		case P_ID:
 			mfer.Helper.Patient.Id = string(bytes[i : i+int(length)])
@@ -214,9 +304,7 @@ func loadMfer(mfer Mfer, path string) (Mfer, error) {
 		case MESSAGE:
 		case UID:
 		case MAP:
-		case END:
-			fmt.Printf("END\n")
-			break
+
 		}
 
 		i += int(length)

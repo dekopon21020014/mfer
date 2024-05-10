@@ -25,7 +25,7 @@ func main() {
 		fmt.Println(string(m))
 		return
 	}
-	
+
 	m, _ := json.MarshalIndent(mfer, "", "    ")
 	fmt.Println(string(m))
 	// fmt.Printf("%+v", mfer)

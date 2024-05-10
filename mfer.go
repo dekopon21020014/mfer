@@ -13,17 +13,17 @@ func newMfer() Mfer {
 			Offset:       0, // default: 0
 		},
 		Frame: Frame{
-			BlockLength: 1, 
+			BlockLength: 1,
 			NumChannel:  1,
-			Channels:    make([]Channel, 0),
+			Channels:    make(map[int]Channel),
 		},
 		WaveForm: WaveForm{
-			Ldn:         0, // undefined
+			Ldn: 0, // undefined
 		},
 		Control: Control{
 			ByteOrder: 0, // big endian
-			Version: []byte {0, 0, 0},
-			CharCode:        "ASCII",
+			Version:   []byte{0, 0, 0},
+			CharCode:  "ASCII",
 		},
 	}
 }
@@ -62,7 +62,7 @@ type Frame struct {
 	NumChannel  uint32
 	NumSequence uint32
 	Pointer     int
-	Channels    []Channel
+	Channels    map[int]Channel
 }
 
 type Channel struct {
@@ -100,7 +100,6 @@ type Control struct {
 type Extensions struct {
 	Preamble string
 	Event    Event /* イベントコード 開始時刻，　持続時間　イベント情報の4つがある */
-
 	Value            int    /* 値コード，時刻ポイント，値の3つがある */
 	Condition        int    /* 記録条件，説明コード1, 説明コード２，開始ポイント，接続時間，説明内容 */
 	Error            int    /* *波形変換誤差 */
@@ -110,7 +109,7 @@ type Extensions struct {
 }
 
 type Event struct {
-	Code     byte
+	Code     uint16
 	Begin    uint32
 	Duration uint32
 	Info     string
