@@ -69,12 +69,13 @@ type Channel struct {
 	Num     int
 	TagCode byte
 	Length  byte
-	//Ldn     int
+	//Ldn     
 	Data []byte
 }
 
 type WaveForm struct {
 	Code uint16 /* 0: unknown, 1: standard 12, ... , */
+	Description string
 	//Attribute   Attribute
 	Ldn         byte /* 波形コード，stringの波形情報も取得する必要あり */
 	Information string
@@ -137,12 +138,12 @@ type Patient struct {
 }
 
 type Time struct {
-	Year     int
-	Month    int
-	Day      int
-	Hour     int
-	Minute   int
-	Second   int
-	MiliSec  int
-	MicroSec int
+	Year     uint16
+	Month    byte
+	Day      byte
+	Hour     byte
+	Minute   byte
+	Second   byte
+	MiliSec  uint16
+	MicroSec uint16
 }
