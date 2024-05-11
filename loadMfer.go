@@ -1,16 +1,17 @@
 package main
 
 import (
+	b "bytes"
 	"encoding/binary"
-	"golang.org/x/text/encoding/japanese"
-    "golang.org/x/text/transform"
-	"fmt"
-	"os"
 	"errors"
+	"fmt"
+	"golang.org/x/text/encoding/japanese"
+	"golang.org/x/text/transform"
 	"io/ioutil"
 	"log"
-	b "bytes"
+	"os"
 	"unicode/utf8"
+	"github.com/fatih/color"
 )
 
 func loadMfer(mfer Mfer, path string) (Mfer, error) {
@@ -45,7 +46,7 @@ func loadMfer(mfer Mfer, path string) (Mfer, error) {
 			i += int(numBytes)
 		}
 
-		fmt.Printf("tagCode = %02x, length = %02x(%d), i = %d\n", tagCode, length, length, i)
+		// fmt.Printf("tagCode = %02x, length = %02x(%d), i = %d\n", tagCode, length, length, i)
 
 		switch tagCode {
 		/*
@@ -61,7 +62,6 @@ func loadMfer(mfer Mfer, path string) (Mfer, error) {
 			mfer.Sampling.Interval.Mantissa = mantissa
 
 		case SENSITIVITY: /* サンプリング解像度 */
-			// 得られるのはコードだから文字列に変換したいなら別途処理が必要
 			mfer.Sampling.Sensitivity.UnitCode = bytes[i]
 			mfer.Sampling.Sensitivity.Exponent = int8(bytes[i+1])
 			mantissa, err := Binary2Uint32(mfer.Control.ByteOrder, bytes[i+2:i+int(length)]...)
@@ -118,14 +118,12 @@ func loadMfer(mfer Mfer, path string) (Mfer, error) {
 		 * for Mfer.WaveFrom
 		 */
 		case WAVE_FORM_TYPE:
-			// code, err := Binary2Uint16(mfer.Control.ByteOrder, bytes[i:i+int(length)]...)
 			code, err := Binary2Uint16(mfer.Control.ByteOrder, bytes[i:i+2]...)
 			if err != nil {
 				return mfer, err
 			}
 			mfer.WaveForm.Code = code
-			// description := string(bytes[i+2 : i+int(length)])
-			// mfer.WaveForm.Code, err = Binary2Uint16(mfer.Control.ByteOrder, bytes[i:i+int(length)]...)
+			mfer.WaveForm.Description = string(bytes[i+2 : i+int(length)])
 
 		case CHANNEL_ATTRIBUTE:
 			channelNumber := int(bytes[i-1])
@@ -135,20 +133,8 @@ func loadMfer(mfer Mfer, path string) (Mfer, error) {
 				Num:     channelNumber,
 				TagCode: bytes[i],
 				Length:  bytes[i+1],
-				Data:    (bytes[i+2 : ((i+2) + int(length))]),
+				Data:    (bytes[i+2 : ((i + 2) + int(length))]),
 			}
-
-			// channnelNumber := int(bytes[i-1])
-			// fmt.Printf("  chan = %d\n", channnelNumber/*len(mfer.Frame.Channels)*/)
-			// length = uint32(bytes[i]) // チャンネル属性のタグコードは2バイト
-			// i++
-			// channnel := Channel{
-			// 	Num:     channnelNumber/* len(mfer.Frame.Channels)*/,
-			// 	TagCode: bytes[i],
-			// 	Length:  bytes[i+1],
-			// 	Data:    (bytes[i+2 : (i + 2 + int(bytes[i+1]))]),
-			// }
-			// mfer.Frame.Channels = append(mfer.Frame.Channels, channnel)
 
 		/*
 		 * for mfer.WaveForm
@@ -158,6 +144,9 @@ func loadMfer(mfer Mfer, path string) (Mfer, error) {
 			mfer.WaveForm.Ldn = bytes[i]
 
 		case INFORMATION:
+			color.Green("!!!!!!!!!!!!!!!!!!!!!!!\n")
+			color.Green("INFORMATION: No Imprementation\n")
+			color.Green("!!!!!!!!!!!!!!!!!!!!!!!\n")
 			// 何かよくわかっていない
 			mfer.WaveForm.Information = "there are some information"
 
@@ -169,14 +158,9 @@ func loadMfer(mfer Mfer, path string) (Mfer, error) {
 			mfer.WaveForm.IpdCode = bytes[i]
 
 		case DATA: /* 波形データ部 */
-			// tagやデータ長は無条件でビッグエンディアン
-			// dataLength := Binary2Uint32(0, bytes[i : i+4]...)
-			//dataLength := binary.BigEndian.Uint32(bytes[i : i+4])
-			// mfer.WaveForm.Data = bytes[i : i + int(dataLength)] // この行は必要だけど見にくく成るのでコメントアウトしておく
-			//i += 4
-			//i += int(dataLength)
-
-			//continue
+			color.Green("!!!!!!!!!!!!!!!!!!!!!!!\n")
+			color.Green("DATA: No Imprementation\n")
+			color.Green("!!!!!!!!!!!!!!!!!!!!!!!\n")
 
 		/*
 		 * for Mfer.Control
@@ -188,7 +172,7 @@ func loadMfer(mfer Mfer, path string) (Mfer, error) {
 			// なんだこれ？
 			mfer.Control.Version = bytes[i : i+3]
 
-		case CHAR_CODE:			
+		case CHAR_CODE:
 			mfer.Control.CharCode = string(bytes[i : i+int(length)])
 
 		case ZERO:
@@ -221,45 +205,63 @@ func loadMfer(mfer Mfer, path string) (Mfer, error) {
 			mfer.Extensions.Preamble = string(bytes[i : i+int(length)])
 
 		case EVENT:
-			eventCode, err := Binary2Uint16(mfer.Control.ByteOrder, bytes[i : i+2]...) //bytes[i : i+2]
+			eventCode, err := Binary2Uint16(mfer.Control.ByteOrder, bytes[i:i+2]...) //bytes[i : i+2]
 			if err != nil {
 				return mfer, err
 			}
 			mfer.Extensions.Event.Code = eventCode
 
-			begin, err  := Binary2Uint32(mfer.Control.ByteOrder, bytes[i+2 : i+6]...)
+			begin, err := Binary2Uint32(mfer.Control.ByteOrder, bytes[i+2:i+6]...)
 			if err != nil {
 				return mfer, err
 			}
 			mfer.Extensions.Event.Begin = begin
 
-			duration, err := Binary2Uint32(mfer.Control.ByteOrder, bytes[i+6 : i+10]...)
+			duration, err := Binary2Uint32(mfer.Control.ByteOrder, bytes[i+6:i+10]...)
 			if err != nil {
 				return mfer, err
-			}			
-			mfer.Extensions.Event.Duration = duration 
+			}
+			mfer.Extensions.Event.Duration = duration
 			mfer.Extensions.Event.Info = string(bytes[i+10 : i+int(length)])
 
-		// この辺のフォーマットがよくわかっていない
-		case VALUE:
-			code, err := Binary2Uint16(mfer.Control.ByteOrder, bytes[i : i+2]...) //binary.BigEndian.Uint16(bytes[i : i+2])
+		case VALUE: /* 測定値など波形の値に関する情報を記述する */
+			code, err := Binary2Uint16(mfer.Control.ByteOrder, bytes[i:i+2]...) //binary.BigEndian.Uint16(bytes[i : i+2])
 			if err != nil {
 				return mfer, err
 			}
 
-			time, err := Binary2Uint32(mfer.Control.ByteOrder, bytes[i+2 : i+6]...) // binary.BigEndian.Uint32(bytes[i+2 : i+6])
+			time, err := Binary2Uint32(mfer.Control.ByteOrder, bytes[i+2:i+6]...) // binary.BigEndian.Uint32(bytes[i+2 : i+6])
 			if err != nil {
 				return mfer, err
 			}
 
 			val := string(bytes[i+6 : i+int(length)])
-			fmt.Printf("Value\n  code = %d, time = %d, val = %s\n", code, time, val)
+			fmt.Sprintf("Value\n  code = %d, time = %d, val = %s\n", code, time, val)
 
 		case CONDITION:
+			color.Green("!!!!!!!!!!!!!!!!!!!!!!!\n")
+			color.Green("CONDITION: No Imprementation\n")
+			color.Green("!!!!!!!!!!!!!!!!!!!!!!!\n")
+
 		case ERROR:
+			color.Green("!!!!!!!!!!!!!!!!!!!!!!!\n")
+			color.Green("ERROR: No Imprementation\n")
+			color.Green("!!!!!!!!!!!!!!!!!!!!!!!\n")
+
 		case GROUP:
+			color.Green("!!!!!!!!!!!!!!!!!!!!!!!\n")
+			color.Green("GROUP: No Imprementation\n")
+			color.Green("!!!!!!!!!!!!!!!!!!!!!!!\n")
+
 		case R_POINTER:
+			color.Green("!!!!!!!!!!!!!!!!!!!!!!!\n")
+			color.Green("R_POINTER: No Imprementation\n")
+			color.Green("!!!!!!!!!!!!!!!!!!!!!!!\n")
+
 		case SIGNITURE:
+			color.Green("!!!!!!!!!!!!!!!!!!!!!!!\n")
+			color.Green("SIGNITURE: No Imprementation\n")
+			color.Green("!!!!!!!!!!!!!!!!!!!!!!!\n")
 
 		/*
 		 * for Mfer.Helper
@@ -268,12 +270,12 @@ func loadMfer(mfer Mfer, path string) (Mfer, error) {
 			if utf8.Valid(bytes[i : i+int(length)]) {
 				mfer.Helper.Patient.Name = string(bytes[i : i+int(length)])
 			} else {
-				reader := transform.NewReader(b.NewReader(bytes[i : i+int(length)]), japanese.ShiftJIS.NewDecoder())
+				reader := transform.NewReader(b.NewReader(bytes[i:i+int(length)]), japanese.ShiftJIS.NewDecoder())
 				utf8Bytes, err := ioutil.ReadAll(reader)
 				if err != nil {
 					log.Fatal(err)
 				}
-				mfer.Helper.Patient.Name = string(utf8Bytes)				
+				mfer.Helper.Patient.Name = string(utf8Bytes)
 			}
 
 		case P_ID:
@@ -299,11 +301,51 @@ func loadMfer(mfer Mfer, path string) (Mfer, error) {
 			mfer.Helper.Patient.Sex = bytes[i]
 
 		case TIME:
-			// よくわかっていない
+			year, err := Binary2Uint16(mfer.Control.ByteOrder, bytes[i : i+2]...)
+			if err != nil {
+				return mfer, err
+			}
+			month := bytes[i+2]
+			day := bytes[i+3]
+			hour := bytes[i+4]
+			minute := bytes[i+5]
+			second := bytes[i+6]
+			miliSec, err := Binary2Uint16(mfer.Control.ByteOrder, bytes[i+7 : i+9]...)
+			if err != nil {
+				return mfer, err
+			}
+
+			microSec, err := Binary2Uint16(mfer.Control.ByteOrder, bytes[i+9 : i+11]...)
+			if err != nil {
+				return mfer, err
+			}
+
+			time := Time{
+				Year:     year,
+				Month:    month,
+				Day:      day,
+				Hour:     hour,
+				Minute:   minute,
+				Second:   second,
+				MiliSec:  miliSec,
+				MicroSec: microSec,
+			}
+			mfer.Helper.Time = time
 
 		case MESSAGE:
+			color.Green("!!!!!!!!!!!!!!!!!!!!!!!\n")
+			color.Green("MESSAGE: No Imprementation\n")
+			color.Green("!!!!!!!!!!!!!!!!!!!!!!!\n")
+
 		case UID:
+			color.Green("!!!!!!!!!!!!!!!!!!!!!!!\n")
+			color.Green("UID: No Imprementation\n")
+			color.Green("!!!!!!!!!!!!!!!!!!!!!!!\n")
+
 		case MAP:
+			color.Green("!!!!!!!!!!!!!!!!!!!!!!!\n")
+			color.Green("MAP: No Imprementation\n")
+			color.Green("!!!!!!!!!!!!!!!!!!!!!!!\n")
 
 		}
 
