@@ -2,3 +2,4 @@ hoge.go
 *.mwf
 /OUT* 
 mfer
+/sample-data
