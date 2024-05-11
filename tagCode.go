@@ -20,7 +20,7 @@ const (
 	LDN               = 0x09
 	INFORMATION       = 0x15
 	FILTER            = 0x11
-	IDP               = 0x0f
+	IPD               = 0x0f
 	DATA              = 0x1e
 
 	// for Mfer.Control

@@ -153,7 +153,7 @@ func loadMfer(mfer Mfer, path string) (Mfer, error) {
 		case FILTER:
 			mfer.WaveForm.Filter = string(bytes[i : i+int(length)])
 
-		case IDP:
+		case IPD:
 			// 2byte以上のこともあり？
 			mfer.WaveForm.IpdCode = bytes[i]
 
