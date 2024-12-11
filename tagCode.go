@@ -53,3 +53,57 @@ const (
 	MAP     = 0x88
 	END     = 0x80
 )
+
+var groupMap = map[byte]string{
+	// Mfer.Sampling
+	INTERVAL:    "Sampling",
+	SENSITIVITY: "Sampling",
+	DATA_TYPE:   "Sampling",
+	OFFSET:      "Sampling",
+	NULL:        "Sampling",
+
+	// Mfer.Frame
+	BLOCK:     "Frame",
+	CHANNEL:   "Frame",
+	SEQUENCE:  "Frame",
+	F_POINTER: "Frame",
+
+	// Mfer.WaveForm
+	WAVE_FORM_TYPE:    "WaveForm",
+	CHANNEL_ATTRIBUTE: "WaveForm",
+	LDN:               "WaveForm",
+	INFORMATION:       "WaveForm",
+	FILTER:            "WaveForm",
+	IPD:               "WaveForm",
+	DATA:              "WaveForm",
+
+	// Mfer.Control
+	BYTE_ORDER:   "Control",
+	VERSION:      "Control",
+	CHAR_CODE:    "Control",
+	ZERO:         "Control",
+	COMMENT:      "Control",
+	MACHINE_INFO: "Control",
+	COMPRESSION:  "Control",
+
+	// Extensions
+	PREAMBLE:  "Extensions",
+	EVENT:     "Extensions",
+	VALUE:     "Extensions",
+	CONDITION: "Extensions",
+	ERROR:     "Extensions",
+	GROUP:     "Extensions",
+	R_POINTER: "Extensions",
+	SIGNITURE: "Extensions",
+
+	// Mfer.Helper
+	P_NAME:  "Helper",
+	P_ID:    "Helper",
+	P_AGE:   "Helper",
+	P_SEX:   "Helper",
+	TIME:    "Helper",
+	MESSAGE: "Helper",
+	UID:     "Helper",
+	MAP:     "Helper",
+	END:     "Helper",
+}

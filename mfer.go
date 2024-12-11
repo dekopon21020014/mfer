@@ -12,13 +12,8 @@ func newMfer() Mfer {
 			DataTypeCode: 0, // 16bit singed integer
 			Offset:       0, // default: 0
 		},
-		Frame: Frame{
-			BlockLength: 1,
-			NumChannel:  1,
-			Channels:    make(map[int]Channel),
-		},
-		WaveForm: WaveForm{
-			Ldn: 0, // undefined
+		Frames: []Frame{
+			newFrame(),
 		},
 		Control: Control{
 			ByteOrder: 0, // big endian
@@ -28,10 +23,20 @@ func newMfer() Mfer {
 	}
 }
 
+func newFrame() Frame {
+	return Frame{
+		BlockLength: 1,
+		NumChannel:  1,
+		Channels:    make(map[int]Channel),
+		WaveForm: WaveForm{
+			Ldn: 0, // undefined
+		},
+	}
+}
+
 type Mfer struct {
 	Sampling   Sampling
-	Frame      Frame
-	WaveForm   WaveForm
+	Frames     []Frame
 	Control    Control
 	Extensions Extensions
 	Helper     Helper
@@ -63,18 +68,19 @@ type Frame struct {
 	NumSequence uint32
 	Pointer     int
 	Channels    map[int]Channel
+	WaveForm    WaveForm
 }
 
 type Channel struct {
 	Num     int
 	TagCode byte
 	Length  byte
-	//Ldn     
+	//Ldn
 	Data []byte
 }
 
 type WaveForm struct {
-	Code uint16 /* 0: unknown, 1: standard 12, ... , */
+	Code        uint16 /* 0: unknown, 1: standard 12, ... , */
 	Description string
 	//Attribute   Attribute
 	Ldn         byte /* 波形コード，stringの波形情報も取得する必要あり */
@@ -99,8 +105,8 @@ type Control struct {
 }
 
 type Extensions struct {
-	Preamble string
-	Event    Event /* イベントコード 開始時刻，　持続時間　イベント情報の4つがある */
+	Preamble         string
+	Event            Event  /* イベントコード 開始時刻，　持続時間　イベント情報の4つがある */
 	Value            int    /* 値コード，時刻ポイント，値の3つがある */
 	Condition        int    /* 記録条件，説明コード1, 説明コード２，開始ポイント，接続時間，説明内容 */
 	Error            int    /* *波形変換誤差 */
