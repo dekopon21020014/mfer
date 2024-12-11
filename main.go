@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log"
 	"os"
+
+	m "github.com/dekopon21020014/mfer/pkg/mfer"
 )
 
 func main() {
@@ -17,10 +19,10 @@ func main() {
 		path = os.Args[1]
 	}
 
-	mfer := newMfer()
-	mfer, err = loadMfer(mfer, path)
+	mfer := m.NewMfer()
+	mfer, err = m.LoadMfer(mfer, path)
 	if err != nil {
-		print("error *************************************************")
+		print("********************* ERROR **********************")
 		log.Fatal(err)
 		m, _ := json.MarshalIndent(mfer, "", "    ")
 		fmt.Println(string(m))

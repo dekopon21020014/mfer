@@ -1,4 +1,4 @@
-package main
+package byteorder
 
 import (
 	"encoding/binary"
