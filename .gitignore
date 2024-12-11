@@ -5,3 +5,4 @@ mfer
 /sample-data
 /ECG
 /tmp
+**.DS_Store**
