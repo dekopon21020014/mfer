@@ -7,6 +7,8 @@ import (
 	"os"
 
 	m "github.com/dekopon21020014/mfer/pkg/mfer"
+	"github.com/dekopon21020014/mfer/pkg/mfer2physionet"
+	"github.com/dekopon21020014/mfer/pkg/std12lead"
 )
 
 func main() {
@@ -31,5 +33,31 @@ func main() {
 
 	m, _ := json.MarshalIndent(mfer, "", "    ")
 	fmt.Println(string(m))
-	// fmt.Printf("%+v", mfer)
+
+	calculator, err := std12lead.NewLeadCalculator(&mfer)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	leads, err := calculator.Convert8To12Lead()
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	fmt.Printf("%+v", leads)
+
+	physionetData := mfer2physionet.Convert(leads)
+
+	file, err := os.Create("tmp/hoge.dat")
+	if err != nil {
+		log.Fatalf("ファイル作成に失敗しました: %v", err)
+	}
+	defer file.Close() // 処理が終わったらファイルを閉じる
+
+	// データを書き込む
+	_, err = file.Write(physionetData)
+	if err != nil {
+		log.Fatalf("データ書き込みに失敗しました: %v", err)
+	}
 }

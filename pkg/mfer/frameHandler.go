@@ -2,6 +2,7 @@ package mfer
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/dekopon21020014/mfer/pkg/byteorder"
 	"github.com/fatih/color"
@@ -113,7 +114,7 @@ func handleIpd(mfer *Mfer, bytes []byte, length uint32) error {
 }
 
 func handleData(mfer *Mfer, bytes []byte, length uint32) error {
-	// color.Green("DATA: No Imprementation")
+	fmt.Println("length = ", length)
 	lastIndex := len(mfer.Frames) - 1
 	mfer.Frames[lastIndex].WaveForm.Data = bytes
 	return nil
