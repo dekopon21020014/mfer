@@ -1,10 +1,13 @@
 package main
 
 import (
-	"encoding/json"
+	"flag"
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
+	"strings"
+	"sync"
 
 	m "github.com/dekopon21020014/mfer/pkg/mfer"
 	"github.com/dekopon21020014/mfer/pkg/mfer2physionet"
@@ -12,52 +15,119 @@ import (
 )
 
 func main() {
-	var path string
-	var err error
+	// コマンドラインオプション
+	outputDir := flag.String("d", "output", "出力先ディレクトリ (デフォルト: output)")
+	parallel := flag.Int("p", 4, "並列処理の数 (デフォルト: 4)")
+	flag.Parse()
 
-	if len(os.Args) < 2 { // コマンドライン引数なしならとりあえずECG01を対象にする(開発用)
-		path = "ECG/K-Heart/2024-11-06_17-29-22/0a5b84fc657983af4c80b3ae599b878f670140fd834ca9f27b63d8fbeef17f65_20241106170856.mwf"
-	} else {
-		path = os.Args[1]
+	// 入力パスを取得
+	if flag.NArg() < 1 {
+		log.Fatal("入力ファイルまたはディレクトリを指定してください。")
+	}
+	inputPath := flag.Arg(0)
+
+	// 出力先ディレクトリを作成
+	if err := os.MkdirAll(*outputDir, os.ModePerm); err != nil {
+		log.Fatalf("出力ディレクトリの作成に失敗しました: %v", err)
 	}
 
-	mfer := m.NewMfer()
-	mfer, err = m.LoadMfer(mfer, path)
+	// 入力がディレクトリかファイルかを判定
+	info, err := os.Stat(inputPath)
 	if err != nil {
-		print("********************* ERROR **********************")
-		log.Fatal(err)
-		m, _ := json.MarshalIndent(mfer, "", "    ")
-		fmt.Println(string(m))
+		log.Fatalf("指定された入力パスが無効です: %v", err)
+	}
+
+	if info.IsDir() {
+		// ディレクトリ内の.mwfファイルを並列で処理
+		processDirectory(inputPath, *outputDir, *parallel)
+	} else {
+		// 単一ファイルを処理
+		processFile(inputPath, *outputDir)
+	}
+}
+
+func processDirectory(inputDir, outputDir string, parallel int) {
+	// .mwfファイルを収集
+	var files []string
+	err := filepath.Walk(inputDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if !info.IsDir() && strings.HasSuffix(info.Name(), ".mwf") {
+			files = append(files, path)
+		}
+		return nil
+	})
+	if err != nil {
+		log.Fatalf("ディレクトリ内のファイル処理に失敗しました: %v", err)
+	}
+
+	// 並列処理用のワーカーグループ
+	var wg sync.WaitGroup
+	fileChan := make(chan string, len(files))
+
+	// ファイルをチャネルに送信
+	for _, file := range files {
+		fileChan <- file
+	}
+	close(fileChan)
+
+	// ワーカーを起動
+	for i := 0; i < parallel; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for file := range fileChan {
+				processFile(file, outputDir)
+			}
+		}()
+	}
+
+	// 全てのワーカーが終了するのを待機
+	wg.Wait()
+}
+
+func processFile(inputPath, outputDir string) {
+	// MFERファイルをロード
+	mfer := m.NewMfer()
+	mfer, err := m.LoadMfer(mfer, inputPath)
+	if err != nil {
+		fmt.Printf("エラー: MFERファイルのロードに失敗しました: %s\n", inputPath)
 		return
 	}
 
-	m, _ := json.MarshalIndent(mfer, "", "    ")
-	fmt.Println(string(m))
-
+	// 12誘導に変換
 	calculator, err := std12lead.NewLeadCalculator(&mfer)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Printf("エラー: 12誘導への変換に失敗しました: %s\n", inputPath)
 		return
 	}
-
 	leads, err := calculator.Convert8To12Lead()
 	if err != nil {
-		fmt.Println(err)
+		fmt.Printf("エラー: リード変換に失敗しました: %s\n", inputPath)
 		return
 	}
-	fmt.Printf("%+v", leads)
 
+	// PhysioNet形式のデータに変換
 	physionetData := mfer2physionet.Convert(leads)
 
-	file, err := os.Create("tmp/hoge.dat")
+	// 入力ファイルの拡張子を.datに変更して出力ファイル名を決定
+	outputFileName := filepath.Base(inputPath)
+	outputFileName = outputFileName[:len(outputFileName)-len(filepath.Ext(outputFileName))] + ".dat"
+	outputFilePath := filepath.Join(outputDir, outputFileName)
+
+	// 出力先ファイルを作成
+	file, err := os.Create(outputFilePath)
 	if err != nil {
-		log.Fatalf("ファイル作成に失敗しました: %v", err)
+		fmt.Printf("エラー: ファイル作成に失敗しました: %s\n", outputFilePath)
+		return
 	}
-	defer file.Close() // 処理が終わったらファイルを閉じる
+	defer file.Close()
 
 	// データを書き込む
 	_, err = file.Write(physionetData)
 	if err != nil {
-		log.Fatalf("データ書き込みに失敗しました: %v", err)
+		fmt.Printf("エラー: データ書き込みに失敗しました: %s\n", outputFilePath)
+		return
 	}
 }

@@ -6,3 +6,4 @@ hoge.go
 /ECG
 /tmp
 **.DS_Store**
+**.dat**
