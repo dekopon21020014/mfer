@@ -43,7 +43,11 @@ func (lc *LeadCalculator) Convert8To12Lead() (map[string][]byte, error) {
 	for i, name := range basicLeadNames {
 		begin := i * lc.blockTotalBytes
 		end := begin + lc.blockTotalBytes
-		lead[name] = lc.data[begin:end]
+		if begin >= 0 && end <= len(lc.data) && begin < end {
+			lead[name] = lc.data[begin:end]
+		} else {
+			return nil, fmt.Errorf("index out of bounds for lead %s", name)
+		}
 	}
 
 	// 追加の誘導の計算
