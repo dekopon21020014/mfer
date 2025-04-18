@@ -16,13 +16,17 @@ import (
 
 func main() {
 	// コマンドラインオプション
-	outputDir := flag.String("d", "output", "出力先ディレクトリ (デフォルト: output)")
-	parallel := flag.Int("p", 4, "並列処理の数 (デフォルト: 4)")
+	outputDir := flag.String("d", ".", "出力先ディレクトリ")
+	parallel := flag.Int("p", 4, "並列処理の数")
 	flag.Parse()
 
 	// 入力パスを取得
 	if flag.NArg() < 1 {
-		log.Fatal("入力ファイルまたはディレクトリを指定してください。")
+		fmt.Println("エラー: 入力ファイルまたはディレクトリを指定してください。")
+		fmt.Println("使用方法: コマンド [オプション] <入力ファイルまたはディレクトリ>")
+		fmt.Println("オプション:")
+		flag.PrintDefaults()
+		os.Exit(1)
 	}
 	inputPath := flag.Arg(0)
 
@@ -96,6 +100,11 @@ func processFile(inputPath, outputDir string) {
 		return
 	}
 
+	if len(mfer.Frames[0].WaveForm.Data) == 0 {
+		fmt.Printf("エラー: MFERファイルにフレームがありません: %s\n", inputPath)
+		return
+	}
+
 	// 12誘導に変換
 	calculator, err := std12lead.NewLeadCalculator(&mfer)
 	if err != nil {
@@ -113,21 +122,35 @@ func processFile(inputPath, outputDir string) {
 
 	// 入力ファイルの拡張子を.datに変更して出力ファイル名を決定
 	outputFileName := filepath.Base(inputPath)
-	outputFileName = outputFileName[:len(outputFileName)-len(filepath.Ext(outputFileName))] + ".dat"
-	outputFilePath := filepath.Join(outputDir, outputFileName)
 
-	// 出力先ファイルを作成
-	file, err := os.Create(outputFilePath)
+	// datファイルの作成
+	datFileName := outputFileName[:len(outputFileName)-len(filepath.Ext(outputFileName))] + ".dat"
+	datFilePath := filepath.Join(outputDir, datFileName)
+	datFile, err := os.Create(datFilePath)
 	if err != nil {
-		fmt.Printf("エラー: ファイル作成に失敗しました: %s\n", outputFilePath)
+		fmt.Printf("エラー: ファイル作成に失敗しました: %s\n", datFilePath)
 		return
 	}
-	defer file.Close()
+	defer datFile.Close()
 
 	// データを書き込む
-	_, err = file.Write(physionetData)
+	_, err = datFile.Write(physionetData)
 	if err != nil {
-		fmt.Printf("エラー: データ書き込みに失敗しました: %s\n", outputFilePath)
+		fmt.Printf("エラー: データ書き込みに失敗しました: %s\n", datFilePath)
+		return
+	}
+
+	heaFileName := outputFileName[:len(outputFileName)-len(filepath.Ext(outputFileName))] + ".hea"
+	heaFilePath := filepath.Join(outputDir, heaFileName)
+	heaFile, err := os.Create(heaFilePath)
+	if err != nil {
+		fmt.Printf("エラー: .heaファイルの作成に失敗しました: %s\n", heaFilePath)
+		return
+	}
+	defer heaFile.Close()
+
+	if err := mfer2physionet.MakeHeaFile(heaFile, physionetData, &mfer); err != nil {
+		fmt.Printf("エラー: .heaファイルの作成に失敗しました: %s\n", err)
 		return
 	}
 }
